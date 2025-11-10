@@ -23,6 +23,7 @@ sealed class Screen(val route: String) {
     object Cart : Screen("cart")
 }
 
+
 @Composable
 fun AppNavGraph(
     navController: NavHostController,
@@ -37,6 +38,7 @@ fun AppNavGraph(
         composable(Screen.Login.route) {
             LoginScreen(
                 viewModel = authViewModel,
+                isAuthenticated = currentUser != null,
                 onLoginSuccess = {
                     navController.navigate(Screen.Catalog.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
@@ -68,7 +70,14 @@ fun AppNavGraph(
             }
             user?.let {
                 ProductListScreen(
-                    currentUserEmail = it.email
+                    currentUserEmail = it.email,
+                    currentUserName = it.name,
+                    onLogout = {
+                        SessionManager.logout()
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    }
                 )
             }
         }

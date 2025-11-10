@@ -14,13 +14,14 @@ import com.example.levelup.ui.viewmodel.AuthViewModel
 @Composable
 fun LoginScreen(
     viewModel: AuthViewModel,
+    isAuthenticated: Boolean,
     onLoginSuccess: () -> Unit,
     onNavigateRegister: () -> Unit
 ) {
     val state = viewModel.uiState
 
-    LaunchedEffect(state.successMessage) {
-        if (state.successMessage != null) {
+    LaunchedEffect(isAuthenticated) {
+        if (isAuthenticated) {
             onLoginSuccess()
         }
     }

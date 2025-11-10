@@ -5,6 +5,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,26 +18,47 @@ import com.example.levelup.data.repo.CartRepository
 import com.example.levelup.data.repo.ProductRepository
 import com.example.levelup.ui.viewmodel.CartViewModel
 import com.example.levelup.utils.formatPrice
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartScreen(
-    onBack: () -> Unit
-) {
+    userEmail: String,
+    onBack: () -> Unit,
+    viewModel: CartViewModel? = null) {
     val cartRepo = remember { CartRepository(LevelUpApp.database.cartDao()) }
     val productRepo = remember { ProductRepository(LevelUpApp.database.productDao()) }
-    val viewModel = remember { CartViewModel(cartRepo) }
-    val scope = rememberCoroutineScope()
+    val cartViewModel = viewModel ?: remember(userEmail) { CartViewModel(cartRepo, userEmail) }
 
-    val cartItems by viewModel.cartItems.collectAsState()
+    val cartItems by cartViewModel.cartItems.collectAsState()
     var total by remember { mutableStateOf(0) }
+
+    var showPaymentMethods by remember { mutableStateOf(false) }
+    var selectedMethod by remember { mutableStateOf<String?>(null) }
+    var isProcessingPayment by remember { mutableStateOf(false) }
+    var showSuccessDialog by remember { mutableStateOf(false) }
+
+    val paymentMethods = listOf(
+        "Tarjeta de crédito",
+        "Transferencia bancaria",
+        "PayPal"
+    )
 
     LaunchedEffect(cartItems) {
         val products = productRepo.getAllProducts()
         total = cartItems.sumOf { item ->
             val product = products.find { it.id == item.productId }
             (product?.price ?: 0) * item.quantity
+        }
+    }
+
+    LaunchedEffect(isProcessingPayment, selectedMethod) {
+        if (isProcessingPayment && selectedMethod != null) {
+            delay(2000)
+            cartViewModel.clearCart()
+            isProcessingPayment = false
+            showSuccessDialog = true
         }
     }
 
@@ -56,13 +79,10 @@ fun CartScreen(
                     Text("Total: ${total.formatPrice()}", style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedButton(onClick = { scope.launch { viewModel.clearCart() } }, modifier = Modifier.weight(1f)) {
-                            Text("Vaciar carrito")
+                        OutlinedButton(onClick = { cartViewModel.clearCart() }, modifier = Modifier.weight(1f)) {                            Text("Vaciar carrito")
                         }
                         Button(
-                            onClick = {
-                                scope.launch { viewModel.clearCart() }
-                            },
+                            onClick = { showPaymentMethods = true },
                             modifier = Modifier.weight(1f)
                         ) {
                             Text("Finalizar compra")
@@ -82,12 +102,75 @@ fun CartScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(cartItems) { item ->
-                    CartItemCard(item = item, productRepo = productRepo, viewModel = viewModel)
+                    CartItemCard(item = item, productRepo = productRepo, viewModel = cartViewModel)
                 }
             }
         }
     }
+
+    if (showPaymentMethods) {
+        AlertDialog(
+            onDismissRequest = { showPaymentMethods = false },
+            title = { Text("Selecciona un método de pago") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    paymentMethods.forEach { method ->
+                        Button(
+                            onClick = {
+                                selectedMethod = method
+                                showPaymentMethods = false
+                                isProcessingPayment = true
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(method)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showPaymentMethods = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (isProcessingPayment) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Procesando pago") },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    CircularProgressIndicator()
+                    Text("Confirmando tu compra...")
+                }
+            },
+            confirmButton = {}
+        )
+    }
+
+    if (showSuccessDialog && selectedMethod != null) {
+        AlertDialog(
+            onDismissRequest = { showSuccessDialog = false },
+            title = { Text("Compra finalizada") },
+            text = { Text("Tu pago con ${selectedMethod} ha sido procesado exitosamente.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showSuccessDialog = false
+                        selectedMethod = null
+                    }
+                ) {
+                    Text("Aceptar")
+                }
+            }
+        )
+    }
 }
+
+
 
 @Composable
 fun CartItemCard(
@@ -116,12 +199,21 @@ fun CartItemCard(
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                OutlinedButton(onClick = { viewModel.decreaseQuantity(item) }, modifier = Modifier.size(36.dp)) { Text("-") }
+                FilledTonalIconButton(onClick = { viewModel.decreaseQuantity(item)}) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = "Aumentar cantidad"
+                    )
+                }
                 Spacer(Modifier.width(8.dp))
                 Text("${item.quantity}", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.width(8.dp))
-                OutlinedButton(onClick = { viewModel.increaseQuantity(item) }, modifier = Modifier.size(36.dp)) { Text("+") }
-            }
+                FilledTonalIconButton(onClick = { viewModel.increaseQuantity(item)}) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = "Aumentar cantidad"
+                    )
+                }            }
             Spacer(Modifier.height(8.dp))
             Text("Subtotal: ${(productPrice * item.quantity).formatPrice()}")
         }

@@ -2,6 +2,8 @@ package com.example.levelup.ui.catalog
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -11,15 +13,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.levelup.LevelUpApp
-import com.example.levelup.R
-import com.example.levelup.data.model.CartItem
 import com.example.levelup.data.repo.CartRepository
 import com.example.levelup.data.repo.ProductRepository
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.Icons
+import androidx.compose.ui.layout.ContentScale
+
+
 
 @Composable
 fun ProductDetailScreen(
     productId: Int,
+    userEmail: String,
     onBack: () -> Unit
 ) {
     val productRepo = remember { ProductRepository(LevelUpApp.database.productDao()) }
@@ -41,14 +46,17 @@ fun ProductDetailScreen(
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            val imageRes = productImageResource(prod.imageUrl)
             Image(
-                painter = painterResource(R.drawable.ic_launcher_foreground),
+                painter = painterResource(imageRes),
                 contentDescription = prod.name,
-                modifier = Modifier.size(150.dp)
-            )
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(200.dp)
+                    .padding(bottom = 16.dp)            )
 
-            Spacer(Modifier.height(16.dp))
             Text(prod.name, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(5.dp))
             Text(prod.description, style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.height(8.dp))
             Text("Precio: $${prod.price}", fontWeight = FontWeight.Medium)
@@ -58,16 +66,28 @@ fun ProductDetailScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedButton(onClick = { if (quantity > 1) quantity-- }) { Text("-") }
+                FilledTonalIconButton(
+                    onClick = { if (quantity > 1) quantity-- }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = "Disminuir cantidad"
+                    )
+                }
                 Text(quantity.toString(), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                OutlinedButton(onClick = { quantity++ }) { Text("+") }
+                FilledTonalIconButton(onClick = { quantity++ }) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = "Aumentar cantidad"
+                    )
+                }
             }
 
             Spacer(Modifier.height(20.dp))
             Button(
                 onClick = {
                     scope.launch {
-                        cartRepo.addToCart(CartItem(productId = prod.id, quantity = quantity))
+                        cartRepo.addToCart(userEmail, prod.id, quantity)
                     }
                 },
                 modifier = Modifier.fillMaxWidth()

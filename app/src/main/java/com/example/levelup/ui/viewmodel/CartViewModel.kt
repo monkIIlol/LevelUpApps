@@ -9,34 +9,46 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class CartViewModel(private val repository: CartRepository) : ViewModel() {
+class CartViewModel(
+    private val repository: CartRepository,
+    private val userEmail: String
+) : ViewModel() {
 
     private val _cartItems = MutableStateFlow<List<CartItem>>(emptyList())
     val cartItems: StateFlow<List<CartItem>> = _cartItems.asStateFlow()
 
     init {
         viewModelScope.launch {
-            repository.getCartItems().collect { items ->
+            repository.getCartItems(userEmail).collect { items ->
                 _cartItems.value = items
             }
         }
     }
 
-    fun increaseQuantity(item: CartItem) {
+    fun addProduct(productId: Int, quantity: Int) {
         viewModelScope.launch {
-            repository.addToCart(CartItem(productId = item.productId, quantity = 1))
+            repository.addToCart(userEmail, productId, quantity)
         }
+    }
+
+    fun increaseQuantity(item: CartItem) {
+        addProduct(item.productId, 1)
     }
 
     fun decreaseQuantity(item: CartItem) {
         viewModelScope.launch {
-            if (item.quantity > 1) {
-                repository.addToCart(CartItem(productId = item.productId, quantity = -1))
-            } else {
-                repository.removeFromCart(item.productId)
-            }
+            repository.addToCart(userEmail, item.productId, -1)
         }
     }
 
-    fun clearCart() = viewModelScope.launch { repository.clearCart() }
-}
+    fun removeItem(productId: Int) {
+        viewModelScope.launch {
+            repository.removeFromCart(userEmail, productId)
+        }
+    }
+
+    fun clearCart() {
+        viewModelScope.launch {
+            repository.clearCart(userEmail)
+        }
+    }}

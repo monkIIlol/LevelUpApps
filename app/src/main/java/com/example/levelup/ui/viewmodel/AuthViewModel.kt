@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.levelup.data.model.User
 import com.example.levelup.data.repo.UserRepository
+import com.example.levelup.data.session.SessionManager
 import com.example.levelup.domain.validation.Validators
 import kotlinx.coroutines.launch
 
@@ -55,13 +56,16 @@ class AuthViewModel(
         }
     }
 
-    // 🔹 Inicio de sesión
+    // Inicio de sesión
     fun login() {
         if (uiState.emailError || uiState.passwordError) return
+
+        uiState = uiState.copy(successMessage = null, errorMessage = null)
 
         viewModelScope.launch {
             val user = userRepository.login(uiState.email, uiState.password)
             if (user != null) {
+                SessionManager.login(user)
                 uiState = uiState.copy(successMessage = "Bienvenido ${user.name}", errorMessage = null)
             } else {
                 uiState = uiState.copy(errorMessage = "Credenciales inválidas", successMessage = null)

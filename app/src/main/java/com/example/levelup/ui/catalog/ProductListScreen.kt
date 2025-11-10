@@ -1,5 +1,6 @@
 package com.example.levelup.ui.catalog
 
+import android.R.attr.onClick
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -20,9 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.levelup.R
 import com.example.levelup.LevelUpApp
-import com.example.levelup.data.model.CartItem
 import com.example.levelup.data.repo.CartRepository
 import com.example.levelup.data.repo.ProductRepository
 import com.example.levelup.ui.cart.CartScreen
@@ -34,36 +33,38 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductListScreen(
-    onNavigateCart: () -> Unit,
-    onNavigateDetail: (Int) -> Unit
+    currentUserEmail: String
 ) {
     val productRepo = remember { ProductRepository(LevelUpApp.database.productDao()) }
     val cartRepo = remember { CartRepository(LevelUpApp.database.cartDao()) }
-    val viewModel = remember { ProductViewModel(productRepo) }
-    val products by viewModel.products.collectAsState()
-    val scope = rememberCoroutineScope()
+    val productViewModel = remember { ProductViewModel(productRepo) }
+    val products by productViewModel.products.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val cartViewModel = remember(currentUserEmail) { CartViewModel(cartRepo, currentUserEmail) }
+    val cartItems by cartViewModel.cartItems.collectAsState()
+    val cartCount = cartItems.sumOf { it.quantity }
 
     var isCartOpen by remember { mutableStateOf(false) }
     var selectedProductId by remember { mutableStateOf<Int?>(null) }
     var showProductDetail by remember { mutableStateOf(false) }
 
-    val cartViewModel = remember { CartViewModel(cartRepo) }
-    val cartItems by cartViewModel.cartItems.collectAsState()
-    val cartCount = cartItems.sumOf { it.quantity }
+    val blurRadius = if (isCartOpen || showProductDetail) 16.dp else 0.dp
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("Catálogo") },
-                    actions = {
-                        BadgedBox(
-                            badge = {
-                                if (cartCount > 0) {
-                                    Badge {
-                                        Text(cartCount.toString())
-                                    }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .blur(blurRadius)
+        ) {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = { Text("Catálogo") },
+                        actions = {
+                            BadgedBox(
+                                badge = {
+                                    if (cartCount > 0) {
+                                        Badge { Text(cartCount.toString()) }
                                 }
                             }
                         ) {
@@ -74,34 +75,33 @@ fun ProductListScreen(
                     }
                 )
             },
-            snackbarHost = { SnackbarHost(snackbarHostState) }
-        ) { padding ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(products) { product ->
-                    ProductCard(
-                        product = product,
-                        onAddToCart = {
-                            scope.launch {
-                                cartRepo.addToCart(CartItem(productId = product.id, quantity = 1))
-                                snackbarHostState.showSnackbar("Producto agregado al carrito")
-                            }
-                        },
-                        onClick = {
-                            selectedProductId = product.id
-                            showProductDetail = true
-                        }
-                    )
+                snackbarHost = { SnackbarHost(snackbarHostState) }
+            ) { padding ->
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(products) { product ->
+                        ProductCard(
+                            product = product,
+                            onAddToCart = { cartViewModel.addProduct(product.id, 1) },
+                            onClick = {
+                                selectedProductId = product.id
+                                showProductDetail = true
+                            },
+                            snackbarHostState = snackbarHostState
+                        )
+                    }
+
+
+
                 }
             }
         }
 
-        // Fondo oscuro solo cuando se muestra detalle o carrito
         if (isCartOpen || showProductDetail) {
             Box(
                 modifier = Modifier
@@ -115,25 +115,37 @@ fun ProductListScreen(
             )
         }
 
-        // Carrito — movido a la derecha
         AnimatedVisibility(
             visible = isCartOpen,
             enter = slideInHorizontally(initialOffsetX = { it }),
             exit = slideOutHorizontally(targetOffsetX = { it })
         ) {
-            Surface(
+            Box(
                 modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(0.85f)
-                    .align(Alignment.CenterEnd),
-                tonalElevation = 8.dp,
-                shape = MaterialTheme.shapes.medium
+                    .fillMaxSize(),
+                contentAlignment = Alignment.CenterEnd
             ) {
-                CartScreen(onBack = { isCartOpen = false })
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(0.85f),
+                        tonalElevation = 8.dp,
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        CartScreen(
+                            userEmail = currentUserEmail,
+                            onBack = { isCartOpen = false },
+                            viewModel = cartViewModel
+                        )
+                    }
+                }
             }
         }
 
-        // Detalle centrado sin blur sobre sí mismo
         if (showProductDetail && selectedProductId != null) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -148,6 +160,7 @@ fun ProductListScreen(
                 ) {
                     ProductDetailScreen(
                         productId = selectedProductId!!,
+                        userEmail = currentUserEmail,
                         onBack = {
                             showProductDetail = false
                             selectedProductId = null
@@ -160,24 +173,14 @@ fun ProductListScreen(
 }
 
 @Composable
-fun ProductCard(
+private fun ProductCard(
     product: com.example.levelup.data.model.Product,
     onAddToCart: () -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    snackbarHostState: SnackbarHostState
 ) {
-    val imageRes = when (product.imageUrl) {
-        "catan" -> R.drawable.catan
-        "carcasone" -> R.drawable.carcasone
-        "xbosseries" -> R.drawable.xbosseries
-        "hyperxcloud" -> R.drawable.hyperxcloud
-        "pley5" -> R.drawable.pley5
-        "pcgamer" -> R.drawable.pcgamer
-        "sillagamer" -> R.drawable.sillagamer
-        "logitchg502" -> R.drawable.logitchg502
-        "mousepadrazer" -> R.drawable.mousepadrazer
-        "polera_negra" -> R.drawable.polera_negra
-        else -> R.drawable.ic_launcher_foreground
-    }
+    val imageRes = productImageResource(product.imageUrl)
+    val scope = rememberCoroutineScope()
 
     Card(
         modifier = Modifier
@@ -198,7 +201,15 @@ fun ProductCard(
             Text(product.description, style = MaterialTheme.typography.bodyMedium)
             Text("Precio: ${product.price.formatPrice()}", fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(8.dp))
-            Button(onClick = onAddToCart, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = {
+                    scope.launch {
+                        onAddToCart()
+                        snackbarHostState.showSnackbar("Producto agregado al carrito")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Text("Agregar al carrito")
             }
         }

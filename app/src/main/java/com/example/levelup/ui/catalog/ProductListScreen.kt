@@ -3,6 +3,7 @@ package com.example.levelup.ui.catalog
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,12 +16,20 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
@@ -56,11 +65,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.levelup.LevelUpApp
 import com.example.levelup.R
@@ -72,9 +83,10 @@ import com.example.levelup.ui.cart.CartScreen
 import com.example.levelup.ui.viewmodel.CartViewModel
 import com.example.levelup.ui.viewmodel.ProductViewModel
 import com.example.levelup.utils.formatPrice
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ProductListScreen(
     currentUserEmail: String,
@@ -96,11 +108,25 @@ fun ProductListScreen(
 
     val blurRadius = if (isCartOpen || showProductDetail) 16.dp else 0.dp
     val lazyListState = rememberLazyListState()
-    val scrollScope = rememberCoroutineScope()
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
+    val coroutineScope = rememberCoroutineScope()
 
     val sections by remember(products) {
         mutableStateOf(buildCatalogSections(products))
     }
+
+    val sectionStartIndices by remember(sections) {
+        mutableStateOf(calculateSectionStartIndices(sections))
+    }
+
+    val navigateToSection: (CatalogSection) -> Unit = { section ->
+        coroutineScope.launch {
+        pagerState.animateScrollToPage(1)
+            sectionStartIndices[section.title]?.let { index ->
+                lazyListState.animateScrollToItem(index)
+        }
+    }
+}
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -108,85 +134,40 @@ fun ProductListScreen(
                 .fillMaxSize()
                 .blur(blurRadius)
         ) {
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = { Text("Catálogo") },
-                        actions = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                UserAccountMenu(
-                                    currentUserName = currentUserName,
-                                    onLogout = onLogout
-                                )
-                                BadgedBox(
-                                    badge = {
-                                        if (cartCount > 0) {
-                                            Badge { Text(cartCount.toString()) }
-                                        }
-                                    }
-                                ) {
-                                    IconButton(onClick = { isCartOpen = true }) {
-                                        Icon(Icons.Default.ShoppingCart, contentDescription = "Carrito")
-                                    }
-                                }
-                            }
-                        }
+            VerticalPager(
+            state = pagerState,
+            userScrollEnabled = !isCartOpen && !showProductDetail,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            when (page) {
+                0 -> HomePage(
+                    sections = sections,
+                    currentUserName = currentUserName,
+                    cartCount = cartCount,
+                    onLogout = onLogout,
+                    onCartClick = { isCartOpen = true },
+                    onViewCatalog = {
+                        coroutineScope.launch { pagerState.animateScrollToPage(1) }
+                    },
+                    onNavigateToSection = navigateToSection
                     )
-            },
-                snackbarHost = { SnackbarHost(snackbarHostState) }
-            ) { padding ->
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    state = lazyListState,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    item {
-                        CatalogHero(
-                            onViewProductsClick = {
-                                scrollScope.launch {
-                                    if (sections.isNotEmpty()) {
-                                        lazyListState.animateScrollToItem(1)
-                                    }
-                                }
-                            }
-                        )
+                else -> CatalogPage(
+                sections = sections,
+                products = products,
+                snackbarHostState = snackbarHostState,
+                lazyListState = lazyListState,
+                currentUserName = currentUserName,
+                cartCount = cartCount,
+                onLogout = onLogout,
+                onCartClick = { isCartOpen = true },
+                onAddToCart = { productId -> cartViewModel.addProduct(productId, 1) },
+                onProductSelected = { productId ->
+                    selectedProductId = productId
+                    showProductDetail = true
+
                     }
-                    if (products.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 48.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator()
-                            }
-                        }
-                    } else {
-                        sections.forEach { section ->
-                            item {
-                                SectionHeader(title = section.title)
-                            }
-                            items(section.products, key = { it.id }) { product ->
-                                ProductCard(
-                                    product = product,
-                                    onAddToCart = { cartViewModel.addProduct(product.id, 1) },
-                                    onClick = {
-                                        selectedProductId = product.id
-                                        showProductDetail = true
-                                    },
-                                    snackbarHostState = snackbarHostState
-                                )
-                            }
-                        }
-                        item {
-                            Spacer(modifier = Modifier.height(32.dp))
-                        }
-                    }
-                }
+                )
+            }
             }
         }
 
@@ -255,54 +236,312 @@ fun ProductListScreen(
     }
 
 @Composable
-private fun CatalogHero(onViewProductsClick: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(220.dp)
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.setup),
-                contentDescription = "Sube de nivel tu setup",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+private fun HomePage(
+    sections: List<CatalogSection>,
+    currentUserName: String,
+    cartCount: Int,
+    onLogout: () -> Unit,
+    onCartClick: () -> Unit,
+    onViewCatalog: () -> Unit,
+    onNavigateToSection: (CatalogSection) -> Unit
+) {
+    Scaffold(
+        topBar = {
+            CatalogTopBar(
+                title = "Inicio",
+                currentUserName = currentUserName,
+                cartCount = cartCount,
+                onCartClick = onCartClick,
+                onLogout = onLogout
             )
+        }
+    ) { padding ->
+        CatalogHome(
+            sections = sections,
+            onViewCatalog = onViewCatalog,
+            onNavigateToSection = onNavigateToSection,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        )
+    }
+}
+
+@Composable
+private fun CatalogPage(
+    sections: List<CatalogSection>,
+    products: List<Product>,
+    snackbarHostState: SnackbarHostState,
+    lazyListState: LazyListState,
+    currentUserName: String,
+    cartCount: Int,
+    onLogout: () -> Unit,
+    onCartClick: () -> Unit,
+    onAddToCart: (Int) -> Unit,
+    onProductSelected: (Int) -> Unit
+) {
+    Scaffold(
+        topBar = {
+            CatalogTopBar(
+                title = "Catálogo",
+                currentUserName = currentUserName,
+                cartCount = cartCount,
+                onCartClick = onCartClick,
+                onLogout = onLogout
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
+        if (products.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.55f))
-            )
-            Column(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(horizontal = 24.dp)
+                    .padding(padding),
+                contentAlignment = Alignment.Center
             ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                state = lazyListState,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                sections.forEach { section ->
+                    item(key = "header_${section.title}") {
+                        SectionHeader(title = section.title)
+                    }
+                    items(section.products, key = { it.id }) { product ->
+                        ProductCard(
+                            product = product,
+                            onAddToCart = { onAddToCart(product.id) },
+                            onClick = { onProductSelected(product.id) },
+                            snackbarHostState = snackbarHostState
+                        )
+                    }
+                }
+                item {
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CatalogTopBar(
+    title: String,
+    currentUserName: String,
+    cartCount: Int,
+    onCartClick: () -> Unit,
+    onLogout: () -> Unit
+) {
+    TopAppBar(
+        title = { Text(title) },
+        actions = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                UserAccountMenu(
+                    currentUserName = currentUserName,
+                    onLogout = onLogout
+                )
+                BadgedBox(
+                    badge = {
+                        if (cartCount > 0) {
+                            Badge { Text(cartCount.toString()) }
+                        }
+                    }
+                ) {
+                    IconButton(onClick = onCartClick) {
+                        Icon(Icons.Default.ShoppingCart, contentDescription = "Carrito")
+                    }
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun CatalogHome(
+    sections: List<CatalogSection>,
+    onViewCatalog: () -> Unit,
+    onNavigateToSection: (CatalogSection) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier) {
+        Image(
+            painter = painterResource(id = R.drawable.setup),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.6f))
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 32.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
                 Text(
                     text = "Sube de nivel tu setup",
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Black,
                     color = Color.White
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Consolas, accesorios, PC gamers y más. Envíos a todo Chile.",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.titleMedium,
                     color = Color.White.copy(alpha = 0.9f)
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 Button(
-                    onClick = onViewProductsClick,
+                    onClick = onViewCatalog,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676))
                 ) {
-                    Text("Ver productos", fontWeight = FontWeight.Bold)
+                    Text("Explorar catálogo", fontWeight = FontWeight.Bold)
                 }
             }
+
+            if (sections.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Color.White)
+                }
+            } else {
+                SectionCarousel(
+                    sections = sections,
+                    onNavigateToSection = onNavigateToSection
+                )
+            }
         }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SectionCarousel(
+    sections: List<CatalogSection>,
+    onNavigateToSection: (CatalogSection) -> Unit
+) {
+    val pagerState = rememberPagerState(pageCount = { sections.size })
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        HorizontalPager(state = pagerState) { page ->
+            val section = sections[page]
+            SectionPreview(
+                section = section,
+                onNavigateToSection = onNavigateToSection
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            sections.forEachIndexed { index, _ ->
+                val isSelected = pagerState.currentPage == index
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .size(if (isSelected) 12.dp else 8.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isSelected) Color(0xFF00E676)
+                            else Color.White.copy(alpha = 0.6f)
+                        )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionPreview(
+    section: CatalogSection,
+    onNavigateToSection: (CatalogSection) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 220.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.08f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = section.title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Black,
+                color = Color.White
+            )
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(section.products.take(5), key = { it.id }) { product ->
+                    ProductPreview(product = product)                }
+            }
+        }
+        Button(
+            onClick = { onNavigateToSection(section) },
+            modifier = Modifier.align(Alignment.End),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676))
+        ) {
+            Text("Ver ${section.title}")
+        }
+    }
+}
+
+@Composable
+private fun ProductPreview(product: Product) {
+    val imageRes = productImageResource(product.imageUrl)
+
+    Column(
+        modifier = Modifier.width(140.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.1f))
+        ) {
+            Image(
+                painter = painterResource(id = imageRes),
+                contentDescription = product.name,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                contentScale = ContentScale.Fit
+            )
+        }
+        Text(
+            text = product.name,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = product.price.formatPrice(),
+            style = MaterialTheme.typography.bodySmall,
+            color = Color(0xFF00E676),
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 
@@ -364,6 +603,7 @@ private fun ProductCard(
     }
 }
 
+
 private data class CatalogSection(
     val title: String,
     val products: List<Product>
@@ -392,6 +632,17 @@ private fun buildCatalogSections(products: List<Product>): List<CatalogSection> 
 
     return sections
 }
+
+private fun calculateSectionStartIndices(sections: List<CatalogSection>): Map<String, Int> {
+    val result = mutableMapOf<String, Int>()
+    var currentIndex = 0
+    sections.forEach { section ->
+        result[section.title] = currentIndex
+        currentIndex += 1 + section.products.size
+    }
+    return result
+}
+
 
 @Composable
 private fun UserAccountMenu(

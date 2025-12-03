@@ -68,6 +68,28 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
+    implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.material:material-icons-extended:1.7.0")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Retrofit para consumo de API REST
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // OkHttp para logging
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    // Gson para parseo JSON
+    implementation("com.google.code.gson:gson:2.10.1")
+
+    // JUnit 4 (ya suele venir, pero por si acaso)
+    testImplementation("junit:junit:4.13.2")
+
+    // MockK para mocks
+    testImplementation("io.mockk:mockk:1.13.13")
+
+    // Para probar coroutines y ViewModels
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
 
 }

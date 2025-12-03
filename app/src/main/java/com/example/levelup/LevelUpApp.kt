@@ -14,13 +14,12 @@ class LevelUpApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // Inicializamos Room una sola vez (singleton global)
         database = Room.databaseBuilder(
             applicationContext,
             AppDatabase::class.java,
             "levelup_db"
         )
-            .fallbackToDestructiveMigration() // útil en desarrollo si cambias entidades
+            .fallbackToDestructiveMigration()
             .build()
     }
 }

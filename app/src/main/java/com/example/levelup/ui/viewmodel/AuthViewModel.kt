@@ -18,7 +18,6 @@ class AuthViewModel(
     var uiState by mutableStateOf(AuthUiState())
         private set
 
-    // 🔹 Actualización de campos
     fun onEmailChange(value: String) {
         uiState = uiState.copy(
             email = value,
@@ -40,7 +39,6 @@ class AuthViewModel(
         )
     }
 
-    // 🔹 Registro de usuario
     fun register() {
         if (uiState.hasErrors()) return
 
@@ -56,7 +54,6 @@ class AuthViewModel(
         }
     }
 
-    // Inicio de sesión
     fun login() {
         if (uiState.emailError || uiState.passwordError) return
 

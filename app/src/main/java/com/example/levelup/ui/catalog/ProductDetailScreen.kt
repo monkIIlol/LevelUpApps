@@ -19,7 +19,9 @@ import kotlinx.coroutines.launch
 import androidx.compose.material.icons.Icons
 import androidx.compose.ui.layout.ContentScale
 
-
+// IMPORTS NUEVOS PARA RETROFIT
+import com.example.levelup.data.remote.RetrofitClient
+import com.example.levelup.data.remote.api.ProductApiService
 
 @Composable
 fun ProductDetailScreen(
@@ -27,7 +29,18 @@ fun ProductDetailScreen(
     userEmail: String,
     onBack: () -> Unit
 ) {
-    val productRepo = remember { ProductRepository(LevelUpApp.database.productDao()) }
+    // Servicio API y repositorio de productos
+    val productApi = remember {
+        RetrofitClient.createService(ProductApiService::class.java)
+    }
+
+    val productRepo = remember {
+        ProductRepository(
+            dao = LevelUpApp.database.productDao(),
+            api = productApi
+        )
+    }
+
     val cartRepo = remember { CartRepository(LevelUpApp.database.cartDao()) }
     val scope = rememberCoroutineScope()
 
@@ -53,7 +66,8 @@ fun ProductDetailScreen(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(200.dp)
-                    .padding(bottom = 16.dp)            )
+                    .padding(bottom = 16.dp)
+            )
 
             Text(prod.name, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(5.dp))

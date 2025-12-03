@@ -20,16 +20,30 @@ import com.example.levelup.ui.viewmodel.CartViewModel
 import com.example.levelup.utils.formatPrice
 import kotlinx.coroutines.delay
 
+import com.example.levelup.data.remote.RetrofitClient
+import com.example.levelup.data.remote.api.ProductApiService
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartScreen(
     userEmail: String,
     onBack: () -> Unit,
-    viewModel: CartViewModel? = null) {
+    viewModel: CartViewModel? = null
+) {
     val cartRepo = remember { CartRepository(LevelUpApp.database.cartDao()) }
-    val productRepo = remember { ProductRepository(LevelUpApp.database.productDao()) }
     val cartViewModel = viewModel ?: remember(userEmail) { CartViewModel(cartRepo, userEmail) }
+
+    // 👇 NUEVO: servicio API y repositorio de productos
+    val productApi = remember {
+        RetrofitClient.createService(ProductApiService::class.java)
+    }
+
+    val productRepo = remember {
+        ProductRepository(
+            dao = LevelUpApp.database.productDao(),
+            api = productApi
+        )
+    }
 
     val cartItems by cartViewModel.cartItems.collectAsState()
     var total by remember { mutableStateOf(0) }
@@ -45,6 +59,7 @@ fun CartScreen(
         "PayPal"
     )
 
+    // Cálculo del total usando los productos guardados en Room
     LaunchedEffect(cartItems) {
         val products = productRepo.getAllProducts()
         total = cartItems.sumOf { item ->
@@ -78,8 +93,15 @@ fun CartScreen(
                 Column(Modifier.padding(16.dp)) {
                     Text("Total: ${total.formatPrice()}", style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedButton(onClick = { cartViewModel.clearCart() }, modifier = Modifier.weight(1f)) {                            Text("Vaciar carrito")
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedButton(
+                            onClick = { cartViewModel.clearCart() },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Vaciar carrito")
                         }
                         Button(
                             onClick = { showPaymentMethods = true },
@@ -93,16 +115,28 @@ fun CartScreen(
         }
     ) { padding ->
         if (cartItems.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
                 Text("Tu carrito está vacío")
             }
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(cartItems) { item ->
-                    CartItemCard(item = item, productRepo = productRepo, viewModel = cartViewModel)
+                    CartItemCard(
+                        item = item,
+                        productRepo = productRepo,
+                        viewModel = cartViewModel
+                    )
                 }
             }
         }
@@ -142,7 +176,10 @@ fun CartScreen(
             onDismissRequest = {},
             title = { Text("Procesando pago") },
             text = {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     CircularProgressIndicator()
                     Text("Confirmando tu compra...")
                 }
@@ -155,7 +192,7 @@ fun CartScreen(
         AlertDialog(
             onDismissRequest = { showSuccessDialog = false },
             title = { Text("Compra finalizada") },
-            text = { Text("Tu pago con ${selectedMethod} ha sido procesado exitosamente.") },
+            text = { Text("Tu pago con $selectedMethod ha sido procesado exitosamente.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -169,8 +206,6 @@ fun CartScreen(
         )
     }
 }
-
-
 
 @Composable
 fun CartItemCard(
@@ -199,21 +234,22 @@ fun CartItemCard(
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                FilledTonalIconButton(onClick = { viewModel.decreaseQuantity(item)}) {
+                FilledTonalIconButton(onClick = { viewModel.decreaseQuantity(item) }) {
                     Icon(
                         imageVector = Icons.Filled.Delete,
-                        contentDescription = "Aumentar cantidad"
+                        contentDescription = "Disminuir cantidad"
                     )
                 }
                 Spacer(Modifier.width(8.dp))
                 Text("${item.quantity}", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.width(8.dp))
-                FilledTonalIconButton(onClick = { viewModel.increaseQuantity(item)}) {
+                FilledTonalIconButton(onClick = { viewModel.increaseQuantity(item) }) {
                     Icon(
                         imageVector = Icons.Filled.Add,
                         contentDescription = "Aumentar cantidad"
                     )
-                }            }
+                }
+            }
             Spacer(Modifier.height(8.dp))
             Text("Subtotal: ${(productPrice * item.quantity).formatPrice()}")
         }

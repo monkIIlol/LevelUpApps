@@ -4,16 +4,19 @@ import androidx.annotation.DrawableRes
 import com.example.levelup.R
 
 @DrawableRes
-fun productImageResource(imageKey: String): Int = when (imageKey) {
-    "catan" -> R.drawable.catan
-    "carcasone" -> R.drawable.carcasone
-    "xbosseries" -> R.drawable.xbosseries
-    "hyperxcloud" -> R.drawable.hyperxcloud
-    "pley5" -> R.drawable.pley5
-    "pcgamer" -> R.drawable.pcgamer
-    "sillagamer" -> R.drawable.sillagamer
-    "logitchg502" -> R.drawable.logitchg502
-    "mousepadrazer" -> R.drawable.mousepadrazer
-    "polera_negra" -> R.drawable.polera_negra
-    else -> R.drawable.ic_launcher_foreground
+fun productImageResource(key: String): Int {
+    return when (key.lowercase()) {
+
+        "pley5" -> R.drawable.pley5
+        "xbosseries" -> R.drawable.xbosseries
+        "zelda" -> R.drawable.zelda
+        "dualsense" -> R.drawable.dualsense
+        "rtx4070" -> R.drawable.rtx4070
+        "switcholed" -> R.drawable.switcholed
+        "hyperxcloud" -> R.drawable.hyperxcloud
+        "eldenring" -> R.drawable.eldenring
+
+        // fallback obligatorio
+        else -> R.drawable.setup
+    }
 }

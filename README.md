@@ -68,6 +68,8 @@ De esta forma se cumple el requisito de integrar una API externa en el proyecto.
 
 
 ## 5. Captura del APK firmado y .jks:
-![Generación del APK](docs\Captura de pantalla 2025-12-02 235416.png)
-![APK firmado](docs\Captura de pantalla 2025-12-02 234712.png)
+Generación del APK: <img width="641" height="139" alt="Captura de pantalla 2025-12-02 234712" src="https://github.com/user-attachments/assets/630730f2-ef74-4838-8cfd-b425d098249e" />
+
+
+APK firmado: <img width="566" height="439" alt="Captura de pantalla 2025-12-02 235416" src="https://github.com/user-attachments/assets/0c1a4fc2-d18b-4dd0-b4d1-798c2e414660" />
 

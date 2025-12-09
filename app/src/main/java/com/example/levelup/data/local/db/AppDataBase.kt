@@ -11,7 +11,7 @@ import com.example.levelup.data.model.User
 
 @Database(
     entities = [Product::class, User::class, CartItem::class],
-    version = 1,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

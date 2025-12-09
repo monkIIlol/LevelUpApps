@@ -13,7 +13,7 @@ data class ProductDto(
     val descripcion: String,
 
     @SerializedName("precio")
-    val precio: Int,
+    val precio: Int, // si en la API viene como String "549990.00", aquí podrías usar String y castear
 
     @SerializedName("stock")
     val stock: Int,
@@ -21,24 +21,18 @@ data class ProductDto(
     @SerializedName("imagen")
     val imagen: String,
 
-    @SerializedName("categoriaId")
+    @SerializedName("categoria_id")
     val categoriaId: Int
 )
 
 // DTO -> modelo de dominio (Product de tu app)
 fun ProductDto.toModel(): Product {
 
-    val imageKey = when {
-        nombre.contains("PlayStation 5", ignoreCase = true) -> "pley5"
-        nombre.contains("Xbox Series X", ignoreCase = true) -> "xbosseries"
-        nombre.contains("Zelda", ignoreCase = true) -> "zelda"
-        nombre.contains("DualSense", ignoreCase = true) -> "dualsense"
-        nombre.contains("4070", ignoreCase = true) -> "rtx4070"
-        nombre.contains("Switch OLED", ignoreCase = true) -> "switcholed"
-        nombre.contains("HyperX Cloud", ignoreCase = true) -> "hyperxcloud"
-        nombre.contains("Elden Ring", ignoreCase = true) -> "eldenring"
-
-        else -> "setup"   // imagen genérica por defecto
+    // Convertimos "549990.00" -> 549990 (Int)
+    val priceInt = try {
+        precio.toDouble().toInt()
+    } catch (e: Exception) {
+        0
     }
 
     return Product(
@@ -47,6 +41,6 @@ fun ProductDto.toModel(): Product {
         description = descripcion,
         price = precio,
         stock = stock,
-        imageUrl = imageKey
+        imageUrl = imagen
     )
 }

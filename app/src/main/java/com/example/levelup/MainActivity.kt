@@ -7,6 +7,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.navigation.compose.rememberNavController
 import com.example.levelup.data.repo.UserRepository
+import com.example.levelup.data.session.SessionManager
 import com.example.levelup.navigation.AppNavGraph
 import com.example.levelup.ui.theme.LevelUpTheme
 import com.example.levelup.ui.viewmodel.AuthViewModel
@@ -14,6 +15,8 @@ import com.example.levelup.ui.viewmodel.AuthViewModel
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        SessionManager.init(applicationContext)
 
         val userRepo = UserRepository(LevelUpApp.database.userDao())
         val authViewModel = AuthViewModel(userRepo)

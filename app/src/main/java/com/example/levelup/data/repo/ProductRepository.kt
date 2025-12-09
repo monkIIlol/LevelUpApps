@@ -22,35 +22,26 @@ class ProductRepository(
 
             val response = api.getAllProducts()
 
-            Log.d(TAG, "HTTP code: ${response.code()}")
-            Log.d(TAG, "raw body: ${response.raw()}")
-
-
             if (response.isSuccessful) {
                 val body = response.body()
 
                 if (!body.isNullOrEmpty()) {
-                    val remoteProducts = body.map { it.toModel() }
+                    val products = body.map { it.toModel() }
 
-                    Log.d(TAG, "Productos obtenidos de API: ${remoteProducts.size}")
+                    dao.insertAll(products) // refresca caché local
 
-                    // Cacheamos en Room
-                    dao.insertAll(remoteProducts)
-
-                    remoteProducts
-                } else {
-                    Log.w(TAG, "Respuesta exitosa pero cuerpo vacío, usando datos locales")
-                    dao.getAllProducts()
+                    return products
                 }
-            } else {
-                Log.w(TAG, "Error HTTP ${response.code()}, usando datos locales")
-                dao.getAllProducts()
             }
+
+            // Si API falla o viene vacía…
+            dao.getAllProducts()
+
         } catch (e: IOException) {
-            Log.e(TAG, "Error de red: ${e.message}, usando datos locales")
+            Log.e(TAG, "Error red: ${e.message}, usando Room")
             dao.getAllProducts()
         } catch (e: Exception) {
-            Log.e(TAG, "Error inesperado: ${e.message}, usando datos locales")
+            Log.e(TAG, "Error inesperado: ${e.message}, usando Room")
             dao.getAllProducts()
         }
     }
@@ -61,5 +52,17 @@ class ProductRepository(
 
     suspend fun insertProducts(products: List<Product>) {
         dao.insertAll(products)
+    }
+
+    suspend fun upsertProduct(product: Product) {
+        dao.upsertProduct(product)
+    }
+
+    suspend fun deleteProduct(id: Int) {
+        dao.deleteProduct(id)
+    }
+
+    suspend fun getAllLocal(): List<Product> {
+        return dao.getAllProducts()
     }
 }

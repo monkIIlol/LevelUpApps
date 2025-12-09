@@ -1,28 +1,29 @@
 package com.example.levelup.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import com.example.levelup.ui.auth.LoginScreen
-import com.example.levelup.ui.auth.RegisterScreen
-import com.example.levelup.ui.catalog.ProductListScreen
-import com.example.levelup.ui.cart.CartScreen
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import com.example.levelup.data.session.SessionManager
+import com.example.levelup.ui.admin.AdminScreen
+import com.example.levelup.ui.auth.LoginScreen
+import com.example.levelup.ui.auth.RegisterScreen
+import com.example.levelup.ui.cart.CartScreen
+import com.example.levelup.ui.catalog.ProductListScreen
+import com.example.levelup.ui.profile.ProfileScreen
 import com.example.levelup.ui.viewmodel.AuthViewModel
-
-
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
     object Catalog : Screen("catalog")
     object Cart : Screen("cart")
+    object Profile : Screen("profile")
+    object Admin : Screen("admin")
 }
-
 
 @Composable
 fun AppNavGraph(
@@ -69,15 +70,21 @@ fun AppNavGraph(
                 }
             }
             user?.let {
+                val isAdmin = it.email.contains("admin", ignoreCase = true)
+
                 ProductListScreen(
                     currentUserEmail = it.email,
                     currentUserName = it.name,
+                    currentUserPhoto = it.photoUri,   // 👉 PASAMOS FOTO
+                    isAdmin = isAdmin,
                     onLogout = {
                         SessionManager.logout()
                         navController.navigate(Screen.Login.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
-                    }
+                    },
+                    onProfile = { navController.navigate(Screen.Profile.route) },
+                    onAdmin = { navController.navigate(Screen.Admin.route) }
                 )
             }
         }
@@ -93,6 +100,37 @@ fun AppNavGraph(
                     userEmail = user.email,
                     onBack = { navController.popBackStack() }
                 )
+            }
+        }
+
+        composable(Screen.Profile.route) {
+            val user = currentUser
+            if (user == null) {
+                LaunchedEffect(Unit) {
+                    navController.popBackStack()
+                }
+            } else {
+                ProfileScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+        }
+
+        composable(Screen.Admin.route) {
+            val user = currentUser
+            if (user == null) {
+                LaunchedEffect(Unit) {
+                    navController.popBackStack()
+                }
+            } else {
+                // Regla simple: si el correo contiene "admin" es administrador
+                if (user.email.contains("admin", ignoreCase = true)) {
+                    AdminScreen(onBack = { navController.popBackStack() })
+                } else {
+                    LaunchedEffect(Unit) {
+                        navController.popBackStack()
+                    }
+                }
             }
         }
     }

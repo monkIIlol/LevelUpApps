@@ -16,4 +16,16 @@ class UserRepository(private val dao: UserDao) {
     suspend fun getUser(email: String): User? {
         return dao.getUser(email)
     }
+
+    suspend fun updateUser(user: User) {
+        dao.upsertUser(user)
+    }
+
+    suspend fun deleteUser(user: User) {
+        dao.deleteUser(user)
+    }
+
+    suspend fun getAllUsers(): List<User> {
+        return dao.getAllUsers()
+    }
 }

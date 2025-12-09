@@ -21,21 +21,27 @@ class AuthViewModel(
     fun onEmailChange(value: String) {
         uiState = uiState.copy(
             email = value,
-            emailError = !Validators.email(value)
+            emailError = !Validators.email(value),
+            errorMessage = null,
+            successMessage = null
         )
     }
 
     fun onPasswordChange(value: String) {
         uiState = uiState.copy(
             password = value,
-            passwordError = !Validators.password(value)
+            passwordError = !Validators.password(value),
+            errorMessage = null,
+            successMessage = null
         )
     }
 
     fun onNameChange(value: String) {
         uiState = uiState.copy(
             name = value,
-            nameError = !Validators.nonEmpty(value)
+            nameError = !Validators.nonEmpty(value),
+            errorMessage = null,
+            successMessage = null
         )
     }
 
@@ -43,6 +49,20 @@ class AuthViewModel(
         if (uiState.hasErrors()) return
 
         viewModelScope.launch {
+            // limpiar mensajes anteriores
+            uiState = uiState.copy(successMessage = null, errorMessage = null)
+
+            // 👉 Comprobar si el correo ya existe
+            val existing = userRepository.getUser(uiState.email)
+            if (existing != null) {
+                uiState = uiState.copy(
+                    errorMessage = "Ya existe una cuenta con ese correo",
+                    successMessage = null
+                )
+                return@launch
+            }
+
+            // Registrar usuario nuevo
             userRepository.register(
                 User(
                     email = uiState.email,
@@ -50,7 +70,10 @@ class AuthViewModel(
                     password = uiState.password
                 )
             )
-            uiState = uiState.copy(successMessage = "Registro exitoso", errorMessage = null)
+            uiState = uiState.copy(
+                successMessage = "Registro exitoso",
+                errorMessage = null
+            )
         }
     }
 
@@ -63,9 +86,15 @@ class AuthViewModel(
             val user = userRepository.login(uiState.email, uiState.password)
             if (user != null) {
                 SessionManager.login(user)
-                uiState = uiState.copy(successMessage = "Bienvenido ${user.name}", errorMessage = null)
+                uiState = uiState.copy(
+                    successMessage = "Bienvenido ${user.name}",
+                    errorMessage = null
+                )
             } else {
-                uiState = uiState.copy(errorMessage = "Credenciales inválidas", successMessage = null)
+                uiState = uiState.copy(
+                    errorMessage = "Credenciales inválidas",
+                    successMessage = null
+                )
             }
         }
     }

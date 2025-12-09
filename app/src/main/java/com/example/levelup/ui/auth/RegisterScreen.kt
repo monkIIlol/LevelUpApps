@@ -3,6 +3,7 @@ package com.example.levelup.ui.auth
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -17,6 +18,13 @@ fun RegisterScreen(
     onNavigateLogin: () -> Unit
 ) {
     val state = viewModel.uiState
+
+    // 👉 Navegar solo cuando realmente haya éxito
+    LaunchedEffect(state.successMessage) {
+        if (state.successMessage == "Registro exitoso") {
+            onRegisterSuccess()
+        }
+    }
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -91,7 +99,6 @@ fun RegisterScreen(
             Button(
                 onClick = {
                     viewModel.register()
-                    if (state.successMessage != null) onRegisterSuccess()
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -105,7 +112,19 @@ fun RegisterScreen(
             }
 
             state.errorMessage?.let {
-                Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 16.dp))
+                Text(
+                    it,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 16.dp)
+                )
+            }
+
+            state.successMessage?.let {
+                Text(
+                    it,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
             }
         }
     }

@@ -8,7 +8,7 @@ object DemoProducts {
      * Cambia esto a false cuando ya no quieras usar productos demo.
      * También puedes dejarlo true solo en debug.
      */
-    const val ENABLE_DEMO_PRODUCTS: Boolean = true
+    const val ENABLE_DEMO_PRODUCTS: Boolean = false
 
     val items: List<Product> = listOf(
         Product(

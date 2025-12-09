@@ -2,9 +2,12 @@ package com.example.levelup.ui.profile
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.graphics.Bitmap
 import android.location.Location
 import android.location.Geocoder
+import android.content.pm.PackageManager
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -36,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.example.levelup.LevelUpApp
 import com.example.levelup.data.repo.UserRepository
@@ -57,6 +61,7 @@ fun ProfileScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val activity = context as? Activity
 
     // Repositorio y ViewModel
     val userDao = remember { LevelUpApp.database.userDao() }
@@ -87,6 +92,18 @@ fun ProfileScreen(
             } catch (_: Exception) {
                 tempPhotoUri = null
             }
+        }
+    }
+
+    // Launcher para permiso de cámara
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // Si el usuario acepta, lanzamos la cámara
+            cameraLauncher.launch(null)
+        } else {
+            Toast.makeText(context, "Permiso de cámara denegado", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -659,7 +676,19 @@ fun ProfileScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Button(
-                                onClick = { cameraLauncher.launch(null) },
+                                onClick = {
+                                    val hasPermission =
+                                        ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.CAMERA
+                                        ) == PackageManager.PERMISSION_GRANTED
+
+                                    if (hasPermission) {
+                                        cameraLauncher.launch(null)
+                                    } else {
+                                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                    }
+                                },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text("Tomar foto")
